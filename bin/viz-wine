@@ -1,0 +1,55 @@
+#!/bin/bash
+# Launch Viz Artist / Viz Engine / Graphic Hub in its Wine prefix (https://github.com/mattu77/viz-artist-wine).
+#   viz-wine config   -> Viz Engine configuration UI (Viz.exe -u1 -y -c)
+#   viz-wine artist   -> Viz Artist (Viz.exe -u1 -y)
+#   viz-wine engine   -> Viz Engine only (Viz.exe -u1)
+#   viz-wine gh       -> Graphic Hub Terminal (console mode; web UI http://127.0.0.1:19399/Terminal.html)
+#   viz-wine gh-start | gh-stop | gh-status -> start/stop/query the Graphic Hub server through the Terminal REST API
+#   viz-wine <exe> [args]  -> any exe inside the prefix
+# Prefix selection: invoke as viz-wine51 (symlink) or set VIZ_PREFIX=vizartist51 for the Viz Artist 5.1 prefix.
+case "$(basename "$0")" in viz-wine51) VIZ_PREFIX=${VIZ_PREFIX:-vizartist51} ;; esac
+export WINEPREFIX="$HOME/.local/share/wineprefixes/${VIZ_PREFIX:-vizartist}"
+export WINEDEBUG="${WINEDEBUG:--all}"
+# Viz Artist's Qt WebEngine views (Viz One config editor, documentation) never come up under Wine with
+# Chromium's sandbox/GPU process; the GUI then hangs at "Initializing Configuration Editor for Viz One".
+export QTWEBENGINE_CHROMIUM_FLAGS="${QTWEBENGINE_CHROMIUM_FLAGS:---no-sandbox --disable-gpu --disable-gpu-compositing --in-process-gpu --disable-features=RendererCodeIntegrity}"
+export QTWEBENGINE_DISABLE_SANDBOX=1
+VIZ="$WINEPREFIX/drive_c/Program Files/Vizrt/VizEngine"
+[ -d "$VIZ" ] || VIZ="$WINEPREFIX/drive_c/Program Files/vizrt/VizEngine"   # 5.1 prefix: lowercase vendor dir
+mode="${1:-artist}"; shift
+case "$mode" in
+  gh-start|gh-stop|gh-status)
+    # Terminal REST: the server is the entry under status/; PUT its payload with status/vizdb=2 to start, 5 to (emergency) stop.
+    base=http://127.0.0.1:19399; id=$(curl -s -m 10 $base/status/current.entry | grep -oE '<id>[0-9A-F]+</id>' | sed -E 's/<\/?id>//g')
+    [ -z "$id" ] && { echo "Graphic Hub Terminal not reachable at $base (run: viz-wine gh)"; exit 1; }
+    pl=$(mktemp); curl -s -m 10 -o "$pl" "$base/status/$id.payload"
+    case "$mode" in
+      gh-start) v=2 ;; gh-stop) v=5 ;;
+      gh-status) grep -oE 'name="vizdb(namingservice)?"><value>[0-9]' "$pl" | sed -E 's/name=//g; s/><value>/=/g; s/"//g'; rm -f "$pl"; exit 0 ;;
+    esac
+    sed -i -E "s#(<field name=\"vizdb\"><value>)[0-9]#\1$v#; s#(<field name=\"vizdbnamingservice\"><value>)[0-9]#\1$v#" "$pl"
+    # start goes to the ID resource, shutdown (5) only works on the "current" alias (interrupt handler)
+    tgt="$base/status/$id.payload"; [ "$mode" = gh-stop ] && tgt="$base/status/current.payload"
+    curl -s -m 120 -X PUT -H 'Content-Type: application/vnd.vizrt.payload+xml' --data-binary @"$pl" -o /dev/null -w "$mode: http %{http_code}\n" "$tgt"; rm -f "$pl"; exit 0 ;;
+  gh)
+    # Graphic Hub Terminal as a plain process: VizGHTerminalConsole.exe is a copy of the service exe whose
+    # ADVAPI32 import is redirected to ADVAPI3Z.dll (fake SCM dispatcher). websocket.dll must stay hidden or
+    # .NET/WCF answers 500 to everything. Web UI: http://127.0.0.1:19399/Terminal.html
+    rm -f "$WINEPREFIX"/drive_c/ProgramData/vizrt/VizEngine/viz_gpu* 2>/dev/null
+    cd "$WINEPREFIX/drive_c/Program Files/Vizrt/VizGH/Terminal" || exit 1
+    wine sc start HTTP >/dev/null 2>&1
+    exec env WINEDLLOVERRIDES="websocket=" wine VizGHTerminalConsole.exe ;;
+  config) set -- Viz.exe -u1 -y -c "$@" ;;
+  artist) set -- Viz.exe -u1 -y "$@" ;;
+  engine) set -- Viz.exe -u1 "$@" ;;
+  *)      set -- "$mode" "$@" ;;
+esac
+# stale instance file from a crashed run makes Viz think an engine is already running
+rm -f "$WINEPREFIX"/drive_c/ProgramData/vizrt/VizEngine/viz_gpu*
+cd "$VIZ" || exit 1
+wine "$@" &
+pid=$!
+# Viz shows "Failed to remove system menu item CLOSE." (Wine conhost) at every start; okclick.exe presses OK
+# from inside Wine (no X fake input needed).
+( cd "$VIZ" && wine okclick.exe 90 >/dev/null 2>&1 ) &
+wait $pid

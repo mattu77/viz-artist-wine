@@ -1,0 +1,8 @@
+REGEDIT4
+
+; DirectWrite must be able to find "Tahoma" or Viz Artist's Qt WebEngine views recurse until the GUI
+; thread overflows its stack ("Initializing Configuration Editor for Viz One" forever).
+; Install the font files first: winetricks tahoma  (puts tahoma.ttf / tahomabd.ttf into C:\windows\Fonts)
+[HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Fonts]
+"Tahoma (TrueType)"="tahoma.ttf"
+"Tahoma Bold (TrueType)"="tahomabd.ttf"

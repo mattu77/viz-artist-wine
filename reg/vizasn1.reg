@@ -1,0 +1,12 @@
+REGEDIT4
+
+; Route Authenticode SpcStatementType decoding to vizasn1.dll (Wine's wintrust decoder is a stub
+; that raises EXCEPTION_WINE_STUB and kills Viz.exe while it verifies VizLicense.dll).
+
+[HKEY_LOCAL_MACHINE\Software\Microsoft\Cryptography\OID\EncodingType 1\CryptDllDecodeObject\#2006]
+"Dll"="C:\\windows\\system32\\vizasn1.dll"
+"FuncName"="WVTAsn1SpcStatementTypeDecode"
+
+[HKEY_LOCAL_MACHINE\Software\Microsoft\Cryptography\OID\EncodingType 1\CryptDllDecodeObject\1.3.6.1.4.1.311.2.1.11]
+"Dll"="C:\\windows\\system32\\vizasn1.dll"
+"FuncName"="WVTAsn1SpcStatementTypeDecode"

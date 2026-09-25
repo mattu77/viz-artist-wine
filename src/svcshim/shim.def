@@ -1,0 +1,37 @@
+LIBRARY ADVAPI3Z.dll
+EXPORTS
+  ChangeServiceConfigA = advapi32.ChangeServiceConfigA
+  CloseServiceHandle = advapi32.CloseServiceHandle
+  ControlService = advapi32.ControlService
+  CreateServiceA = advapi32.CreateServiceA
+  DeleteService = advapi32.DeleteService
+  DeregisterEventSource = advapi32.DeregisterEventSource
+  GetTokenInformation = advapi32.GetTokenInformation
+  InitializeSecurityDescriptor = advapi32.InitializeSecurityDescriptor
+  LookupAccountSidA = advapi32.LookupAccountSidA
+  OpenProcessToken = advapi32.OpenProcessToken
+  OpenSCManagerA = advapi32.OpenSCManagerA
+  OpenServiceA = advapi32.OpenServiceA
+  OpenThreadToken = advapi32.OpenThreadToken
+  QueryServiceConfigA = advapi32.QueryServiceConfigA
+  QueryServiceStatus = advapi32.QueryServiceStatus
+  RegCloseKey = advapi32.RegCloseKey
+  RegConnectRegistryA = advapi32.RegConnectRegistryA
+  RegCreateKeyA = advapi32.RegCreateKeyA
+  RegCreateKeyExA = advapi32.RegCreateKeyExA
+  RegDeleteKeyA = advapi32.RegDeleteKeyA
+  RegDeleteValueA = advapi32.RegDeleteValueA
+  RegEnumKeyExA = advapi32.RegEnumKeyExA
+  RegEnumValueA = advapi32.RegEnumValueA
+  RegFlushKey = advapi32.RegFlushKey
+  RegisterEventSourceA = advapi32.RegisterEventSourceA
+  RegisterServiceCtrlHandlerA
+  RegOpenKeyA = advapi32.RegOpenKeyA
+  RegOpenKeyExA = advapi32.RegOpenKeyExA
+  RegQueryValueExA = advapi32.RegQueryValueExA
+  RegSetValueExA = advapi32.RegSetValueExA
+  ReportEventA = advapi32.ReportEventA
+  SetSecurityDescriptorDacl = advapi32.SetSecurityDescriptorDacl
+  SetServiceStatus
+  StartServiceA = advapi32.StartServiceA
+  StartServiceCtrlDispatcherA

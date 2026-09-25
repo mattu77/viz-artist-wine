@@ -1,0 +1,15 @@
+REGEDIT4
+
+; Graphic Hub Terminal: hide websocket.dll (Wine's WebSocketGetSupportedVersion is E_NOTIMPL and makes
+; WCF answer 500 to every request); native vcruntime140 (Wine's builtin lacks __FrameUnwindFilter and any
+; handled C++ exception in Terminal.dll aborts the process).
+[HKEY_CURRENT_USER\Software\Wine\DllOverrides]
+"websocket"=""
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\VizGHTerminalConsole.exe\DllOverrides]
+"vcruntime140"="native,builtin"
+"websocket"=""
+
+; The SCM copy of the Terminal must not autostart and grab port 19399 (3 = manual)
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VizGHTerminalService]
+"Start"=dword:00000003

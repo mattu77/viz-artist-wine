@@ -1,0 +1,14 @@
+LIBRARY SHEL32Z.dll
+EXPORTS
+  SHCreateItemFromIDList = shell32.SHCreateItemFromIDList
+  SHCreateItemFromParsingName = shell32.SHCreateItemFromParsingName
+  SHGetMalloc = shell32.SHGetMalloc
+  SHGetPathFromIDListW = shell32.SHGetPathFromIDListW
+  SHGetKnownFolderIDList = shell32.SHGetKnownFolderIDList
+  SHBrowseForFolderW = shell32.SHBrowseForFolderW
+  ShellExecuteW = shell32.ShellExecuteW
+  SHGetFileInfoW = shell32.SHGetFileInfoW
+  SHGetStockIconInfo
+  Shell_NotifyIconW = shell32.Shell_NotifyIconW
+  Shell_NotifyIconGetRect = shell32.Shell_NotifyIconGetRect
+  SHGetImageList = shell32.SHGetImageList @727 NONAME

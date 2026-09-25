@@ -1,0 +1,18 @@
+REGEDIT4
+
+; X11 driver (not Wayland) so xdotool / import / window tools work; GLX instead of EGL
+; ("No matching pixel formats" with Wine 11's EGL backend); PulseAudio backend.
+[HKEY_CURRENT_USER\Software\Wine\Drivers]
+"Graphics"="x11"
+"Audio"="pulse"
+
+[HKEY_CURRENT_USER\Software\Wine\X11 Driver]
+"UseEGL"="N"
+
+; iphlpapi proxy (marks address-less adapters Down, ACE.dll crashes otherwise) - only for Viz.exe
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\Viz.exe\DllOverrides]
+"iphlpapi"="native,builtin"
+
+; Never start Wine's own CodeMeter service: the native Linux CodeMeter on port 22350 serves WibuCm64.dll.
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\CodeMeter.exe]
+"Start"=dword:00000004
