@@ -1,0 +1,8 @@
+REGEDIT4
+
+; vkd3d-proton d3d12.dll + d3d12core.dll placed in the VizEngine dir (see README §9): pairs with DXVK's dxgi so the
+; engine's DLSS DX12 context gets a real device and the shutdown no longer aborts before releasing the license.
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\Viz.exe\DllOverrides]
+"d3d12"="native,builtin"
+"d3d12core"="native,builtin"

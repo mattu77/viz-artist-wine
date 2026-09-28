@@ -44,7 +44,7 @@ src/okclick/, src/okqt/   press OK / Return on a dialog from inside Wine (no X f
 src/diag/                 dwtest.exe (DirectWrite lookup), adapters.exe (GetAdaptersAddresses dump)
 scripts/patch-import.py   rename an imported DLL inside a PE file (same-length names)
 scripts/make-forward-def.sh  generate a forwarding .def from a DLL's export table
-reg/*.reg                 registry snippets referenced below
+reg/*.reg                 registry snippets referenced below (vizasn1, engine, tahoma, graphichub, vizd3d12)
 Makefile                  builds everything into build/ with x86_64-w64-mingw32-gcc
 ```
 
@@ -152,7 +152,7 @@ Copy from `build/` into the VizEngine directory (`$VIZ` below) unless stated oth
 | ACE fails to resolve the local hostname | hostname resolves IPv6-only | add `127.0.1.1 <hostname>` to `/etc/hosts` |
 | engine crashes in `InitVIPPlugin` | `plugin/TextToSpeech.vip` is a C++/CLI (.NET) plugin | `mkdir $VIZ/plugin-disabled && mv $VIZ/plugin/TextToSpeech.vip $VIZ/plugin-disabled/` |
 | "Failed to remove system menu item CLOSE." box at every start | Wine's conhost | harmless; the launcher runs `okclick.exe` to press OK |
-| Viz starts in configuration mode although you asked for Artist | Wibu error 213 "exclusive access conflicts": the single license is still held by a crashed session | `cmu --list-network` shows `Used=1`; wait, or `sudo systemctl restart codemeter` |
+| Viz starts in configuration mode although you asked for Artist | Wibu error 213 "exclusive access conflicts": the single license is still held by a crashed session (or by an engine that aborted on quit, §9) | `cmu --list-network` shows `Used=1`; wait ~3 min, or `sudo systemctl restart codemeter` |
 
 Then install the launcher and pick the license:
 
@@ -267,11 +267,52 @@ runs any other executable inside the prefix.
 | Version | Install dir | Specifics |
 |---|---|---|
 | 5.3.0.60024 | `C:\Program Files\Vizrt` | reference setup; MSIs extracted from the bundle's Temp dir; no stock-icon problem |
-| 5.2.1.60000 | `C:\Program Files\vizrt` | MSIs shipped in `Individual Installers/`; needs `winecfg -v win10` before the CodeMeter MSI; SHEL32Z applied pre-emptively (same Qt 6 `qwindows.dll` as 5.1); Engine, Artist and Basic/DataPool/Maps/PixelFx/Socialize plugins verified |
-| 5.1.1.60000 | `C:\Program Files\vizrt` | SHEL32Z stock-icon proxy required (§6) |
+| 5.2.1.60000 | `C:\Program Files\vizrt` | MSIs shipped in `Individual Installers/`; needs `winecfg -v win10` before the CodeMeter MSI; SHEL32Z applied pre-emptively (same Qt 6 `qwindows.dll` as 5.1); vkd3d-proton D3D12 for a clean exit (§9); Engine, Artist and Basic/DataPool/Maps/PixelFx/Socialize plugins verified |
+| 5.1.1.60000 | `C:\Program Files\vizrt` | SHEL32Z stock-icon proxy required (§6); vkd3d-proton D3D12 for a clean exit (§9) |
 
 All three run side by side in separate prefixes (`viz-wine`, `viz-wine52`, `viz-wine51`) against one
 Graphic Hub 3.1.1 instance, but only one engine at a time when there is a single license.
+
+## 9. License not released on quit (5.2 / 5.1) — fixed with vkd3d-proton
+
+Symptom: after quitting Viz Artist the CodeMeter license stays allocated (`cmu --list-network` shows
+`Used=1`) for about three minutes, and a restart in that window fails with Wibu error 213 and silently
+drops into configuration mode. The engine log ends with:
+
+```
+Destroying System Font Library.
+EMERGENCY: VizEngine-0[36]:Application aborting. Signal=22.
+```
+
+Root cause (gdb + `WINEDEBUG=+seh` at shutdown): an access violation in
+`viz::renderer::dx12::DX12Context::~DX12Context` — it calls `Release()` on a NULL `ID3D12Device`. The
+DX12 context exists only for DLSS; its device creation fails under Wine because Fedora's `wine-dxvk`
+provides DXVK's `dxgi.dll` while `d3d12.dll` is Wine's own (vkd3d), and Wine's `D3D12CreateDevice`
+rejects a DXVK adapter with `E_NOINTERFACE` (`d3d12_get_adapter Invalid adapter, hr 0x80004002`). The
+CRT's exception filter then aborts the process before `finalize the license library` runs, so the
+CodeMeter session is only cleaned up by the server's own timeout (~3 min).
+
+Fix: pair DXVK's DXGI with **vkd3d-proton**'s D3D12 (that is the combination they are designed for).
+Take `x64/d3d12.dll` and `x64/d3d12core.dll` from a vkd3d-proton release
+(https://github.com/HansKristian-Work/vkd3d-proton/releases, tested 3.0.1), put them into the VizEngine
+directory and override for Viz.exe only:
+
+```
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\Viz.exe\DllOverrides]
+"d3d12"="native,builtin"
+"d3d12core"="native,builtin"
+```
+
+(`reg/vizd3d12.reg`). Verified: D3D12 device creation succeeds, the engine logs
+`finalize the license library` / `LocalWinMain done.` and `cmu --list-network` shows `Used=0` the same
+second `Viz.exe` exits. 5.3 does not have this bug (its shutdown never aborted).
+
+Dead ends worth knowing: hiding `d3d12.dll` is impossible (static import of Viz.exe); Wine's own
+`dxgi.dll` cannot be swapped in per application — Wine resolves any builtin-signed PE by its embedded
+name through the library directory (the alternatives symlink), so copies in the app dir, in the prefix's
+system32, under another file name, or via `WINEDLLPATH` (searched *after* the library dir) all end up
+loading DXVK again. Switching the Fedora alternative to `wine-dxgi.dll` would work but affects every
+prefix on the machine.
 
 ## Diagnostics that paid off
 

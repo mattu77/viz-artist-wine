@@ -7,7 +7,7 @@
 set -e
 src=$1; lib=$2; fwd=$3; shift 3
 echo "LIBRARY $lib"; echo EXPORTS
-winedump -j export "$src" | awk '/^ *[0-9]+ +[0-9A-Fa-f]+ +[A-Za-z_]/ {print $3}' | sort -u | while read -r name; do
+winedump -j export "$src" | awk '/^ *[0-9A-Fa-f]{8} +[0-9]+ +[A-Za-z_]/ {print $3}' | sort -u | while read -r name; do
   skip=0; for o in "$@"; do [ "$name" = "$o" ] && skip=1; done
   if [ $skip = 1 ]; then echo "  $name"; else echo "  $name = $fwd.$name"; fi
 done
