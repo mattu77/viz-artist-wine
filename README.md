@@ -1,6 +1,6 @@
 # Viz Artist / Viz Engine / Viz Graphic Hub under Wine on Linux
 
-Recipe, shims and launcher that get **Vizrt Viz Artist 5.3 and 5.1** (Viz Engine + Viz Artist GUI) and
+Recipe, shims and launcher that get **Vizrt Viz Artist 5.3, 5.2 and 5.1** (Viz Engine + Viz Artist GUI) and
 **Viz Graphic Hub 3.1.1** running on a Linux desktop with plain Wine. Everything here was worked out by
 tracing failures one at a time (WINEDEBUG channels, strace, gdb); the README lists the fixes in the order
 they are needed so nobody has to re-derive them.
@@ -23,8 +23,8 @@ proprietary driver, native Linux CodeMeter 8.40. Everything is 64-bit.
 
 | Component | Status |
 |---|---|
-| Viz Engine 5.3 / 5.1 (`Viz.exe -u1 -y`) | runs, renders, licenses via native Linux CodeMeter |
-| Viz Artist GUI 5.3 / 5.1 (`vizgui.exe`) | full workspace: scene tree, editor, plugins, asset view |
+| Viz Engine 5.3 / 5.2 / 5.1 (`Viz.exe -u1 -y`) | runs, renders, licenses via native Linux CodeMeter |
+| Viz Artist GUI 5.3 / 5.2 / 5.1 (`vizgui.exe`) | full workspace: scene tree, editor, plugins, asset view |
 | Viz Config (`Viz.exe -u1 -y -c`) | works (needed to pick the license) |
 | Viz Graphic Hub 3.1.1 server + Terminal | runs as a console process; Artist logs in; old 2.4.2 databases upgrade in place |
 | Video I/O boards, NDI, CUDA plugins | not tested / stubbed (no CUDA) |
@@ -81,7 +81,14 @@ wine regedit reg/tahoma.reg
 `dotnet48` + `corefonts`: the Vizrt bundle installer is a WPF application and FailFasts inside
 `TypefaceMap` without them. `tahoma` + `reg/tahoma.reg`: see §5.
 
+**After winetricks, set the Windows version back to 10** (`winecfg -v win10`): the dotnet48 verb leaves the
+prefix on an older version and the CodeMeter MSI then aborts in `CA_OSBelowWinVerX` ("This application is
+only supported on Windows 10 or higher", msiexec exit code 67 = 1603).
+
 ## 1. Getting the MSIs out of the bundle
+
+Some Vizrt downloads ship an `Individual Installers/` folder with the MSIs (5.2.1 does) — then skip this
+step and only take `vcredist*_x64.exe` and `CodeMeterRuntime64.exe` from a bundle.
 
 `VizArtistBundle-x64-*.exe` is a dotNetInstaller/WPF bundle. It cannot run the MSIs itself under Wine
 reliably (and its `dumpTo=` verb does nothing), so extract the payload:
@@ -128,8 +135,9 @@ wine msiexec /i VizPlugins-DataPool-5.3.0.60013.msi ADDLOCAL=ProductFeature,CM_C
 # other plugin MSIs (Extensions, Maps, PixelFx, Socialize) install the same way if you want them
 ```
 
-5.3 installs to `C:\Program Files\Vizrt\`, 5.1 to `C:\Program Files\vizrt\` (lower case) — the launcher
-probes both.
+5.3 installs to `C:\Program Files\Vizrt\`, 5.2 and 5.1 to `C:\Program Files\vizrt\` (lower case) — the
+launcher probes both. Optional plugin packs (Maps, PixelFx, Socialize, Extensions) install the same way;
+`msiinfo export <msi> Feature` lists the ADDLOCAL feature names.
 
 ## 4. Engine fixes (all needed before `Viz.exe` survives startup)
 
@@ -150,7 +158,7 @@ Then install the launcher and pick the license:
 
 ```bash
 install -m755 bin/viz-wine ~/.local/bin/viz-wine
-ln -s viz-wine ~/.local/bin/viz-wine51          # second prefix for 5.1, optional
+ln -s viz-wine ~/.local/bin/viz-wine51          # extra prefixes: viz-wine51 / viz-wine52 (optional)
 cp build/okclick.exe "$VIZ/"
 viz-wine config                                # Viz Config → Viz Licenses: choose your license
 ```
@@ -182,10 +190,13 @@ Wine's `SHGetStockIconInfo` returns `S_OK` with a NULL `hIcon` for `SIID_WARNING
 `qwindows.dll` then calls `GetIconInfo(NULL)` for every message box. Fix without touching shell32:
 
 ```bash
-cd "$WINEPREFIX/drive_c/Program Files/vizrt/VizArtist/platforms"
-python3 scripts/patch-import.py qwindows.dll SHELL32.dll SHEL32Z.dll     # keeps qwindows.dll.orig
-cp build/SHEL32Z.dll .
+cd "$WINEPREFIX/drive_c/Program Files/vizrt/VizArtist"
+python3 scripts/patch-import.py platforms/qwindows.dll SHELL32.dll SHEL32Z.dll   # keeps qwindows.dll.orig
+cp build/SHEL32Z.dll .        # next to VizGui.exe, NOT into platforms/ (the loader searches the exe dir)
 ```
+
+If `SHEL32Z.dll` is not found, Qt aborts with "no Qt platform plugin could be initialized. Available
+platform plugins are: windows." Also applied pre-emptively to 5.2.1 (same Qt 6 `qwindows.dll`).
 
 `SHEL32Z.dll` forwards the dozen shell32 imports qwindows uses and serves those stock icons from user32's
 standard icons. (When editing `shel32z.def`: ordinal 727 is `SHGetImageList`, exported `NONAME`.)
@@ -244,7 +255,8 @@ first start (the log prints matching MainIndex/Reference/Folders/Users counts).
 ```bash
 viz-wine gh & viz-wine gh-start      # once per session
 viz-wine artist                      # 5.3
-viz-wine51 artist                    # 5.1 (second prefix)
+viz-wine52 artist                    # 5.2 (prefix vizartist52)
+viz-wine51 artist                    # 5.1 (prefix vizartist51)
 ```
 
 Only one engine at a time with a single license; the other one fails with Wibu 213. `viz-wine <exe>`

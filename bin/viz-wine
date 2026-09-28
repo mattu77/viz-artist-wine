@@ -1,13 +1,13 @@
 #!/bin/bash
-# Launch Viz Artist / Viz Engine / Graphic Hub in its Wine prefix (https://github.com/mattu77/viz-artist-wine).
+# Launch Viz Artist 5.3 / Viz Engine in its Wine prefix.
 #   viz-wine config   -> Viz Engine configuration UI (Viz.exe -u1 -y -c)
 #   viz-wine artist   -> Viz Artist (Viz.exe -u1 -y)
 #   viz-wine engine   -> Viz Engine only (Viz.exe -u1)
 #   viz-wine gh       -> Graphic Hub Terminal (console mode; web UI http://127.0.0.1:19399/Terminal.html)
 #   viz-wine gh-start | gh-stop | gh-status -> start/stop/query the Graphic Hub server through the Terminal REST API
 #   viz-wine <exe> [args]  -> any exe inside the prefix
-# Prefix selection: invoke as viz-wine51 (symlink) or set VIZ_PREFIX=vizartist51 for the Viz Artist 5.1 prefix.
-case "$(basename "$0")" in viz-wine51) VIZ_PREFIX=${VIZ_PREFIX:-vizartist51} ;; esac
+# Prefix selection: invoke as viz-wine51 / viz-wine52 (symlinks) or set VIZ_PREFIX=vizartist51 (or vizartist52) for the 5.1 / 5.2 prefixes.
+case "$(basename "$0")" in viz-wine51) VIZ_PREFIX=${VIZ_PREFIX:-vizartist51} ;; viz-wine52) VIZ_PREFIX=${VIZ_PREFIX:-vizartist52} ;; esac
 export WINEPREFIX="$HOME/.local/share/wineprefixes/${VIZ_PREFIX:-vizartist}"
 export WINEDEBUG="${WINEDEBUG:--all}"
 # Viz Artist's Qt WebEngine views (Viz One config editor, documentation) never come up under Wine with
