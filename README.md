@@ -26,6 +26,7 @@ proprietary driver, native Linux CodeMeter 8.40. Everything is 64-bit.
 | Viz Engine 5.3 / 5.2 / 5.1 (`Viz.exe -u1 -y`) | runs, renders, licenses via native Linux CodeMeter |
 | Viz Artist GUI 5.3 / 5.2 / 5.1 (`vizgui.exe`) | full workspace: scene tree, editor, plugins, asset view |
 | Viz Config (`Viz.exe -u1 -y -c`) | works (needed to pick the license) |
+| Quit / license release | clean exit and immediate CodeMeter release with vkd3d-proton D3D12 (§9) |
 | Viz Graphic Hub 3.1.1 server + Terminal | runs as a console process; Artist logs in; old 2.4.2 databases upgrade in place |
 | Video I/O boards, NDI, CUDA plugins | not tested / stubbed (no CUDA) |
 
@@ -152,6 +153,7 @@ Copy from `build/` into the VizEngine directory (`$VIZ` below) unless stated oth
 | ACE fails to resolve the local hostname | hostname resolves IPv6-only | add `127.0.1.1 <hostname>` to `/etc/hosts` |
 | engine crashes in `InitVIPPlugin` | `plugin/TextToSpeech.vip` is a C++/CLI (.NET) plugin | `mkdir $VIZ/plugin-disabled && mv $VIZ/plugin/TextToSpeech.vip $VIZ/plugin-disabled/` |
 | "Failed to remove system menu item CLOSE." box at every start | Wine's conhost | harmless; the launcher runs `okclick.exe` to press OK |
+| Engine dies at the end of every quit and the CodeMeter license stays allocated for minutes | NULL `ID3D12Device` released in the DLSS `DX12Context` destructor; Wine's d3d12 (vkd3d) cannot use DXVK's DXGI adapter | vkd3d-proton `d3d12.dll` + `d3d12core.dll` → `$VIZ/`, `wine regedit reg/vizd3d12.reg` (details §9) |
 | Viz starts in configuration mode although you asked for Artist | Wibu error 213 "exclusive access conflicts": the single license is still held by a crashed session (or by an engine that aborted on quit, §9) | `cmu --list-network` shows `Used=1`; CodeMeter frees it by itself after minutes to tens of minutes, `sudo systemctl restart codemeter` does it at once |
 
 Then install the launcher and pick the license:
