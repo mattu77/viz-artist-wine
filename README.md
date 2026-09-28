@@ -262,6 +262,17 @@ viz-wine51 artist                    # 5.1 (prefix vizartist51)
 Only one engine at a time with a single license; the other one fails with Wibu 213. `viz-wine <exe>`
 runs any other executable inside the prefix.
 
+## Version notes
+
+| Version | Install dir | Specifics |
+|---|---|---|
+| 5.3.0.60024 | `C:\Program Files\Vizrt` | reference setup; MSIs extracted from the bundle's Temp dir; no stock-icon problem |
+| 5.2.1.60000 | `C:\Program Files\vizrt` | MSIs shipped in `Individual Installers/`; needs `winecfg -v win10` before the CodeMeter MSI; SHEL32Z applied pre-emptively (same Qt 6 `qwindows.dll` as 5.1); Engine, Artist and Basic/DataPool/Maps/PixelFx/Socialize plugins verified |
+| 5.1.1.60000 | `C:\Program Files\vizrt` | SHEL32Z stock-icon proxy required (§6) |
+
+All three run side by side in separate prefixes (`viz-wine`, `viz-wine52`, `viz-wine51`) against one
+Graphic Hub 3.1.1 instance, but only one engine at a time when there is a single license.
+
 ## Diagnostics that paid off
 
 * `WINEDEBUG=+loaddll,+seh` to map crash addresses to modules; `+relay` for the last calls before a crash.
