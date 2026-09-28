@@ -152,7 +152,7 @@ Copy from `build/` into the VizEngine directory (`$VIZ` below) unless stated oth
 | ACE fails to resolve the local hostname | hostname resolves IPv6-only | add `127.0.1.1 <hostname>` to `/etc/hosts` |
 | engine crashes in `InitVIPPlugin` | `plugin/TextToSpeech.vip` is a C++/CLI (.NET) plugin | `mkdir $VIZ/plugin-disabled && mv $VIZ/plugin/TextToSpeech.vip $VIZ/plugin-disabled/` |
 | "Failed to remove system menu item CLOSE." box at every start | Wine's conhost | harmless; the launcher runs `okclick.exe` to press OK |
-| Viz starts in configuration mode although you asked for Artist | Wibu error 213 "exclusive access conflicts": the single license is still held by a crashed session (or by an engine that aborted on quit, §9) | `cmu --list-network` shows `Used=1`; wait ~3 min, or `sudo systemctl restart codemeter` |
+| Viz starts in configuration mode although you asked for Artist | Wibu error 213 "exclusive access conflicts": the single license is still held by a crashed session (or by an engine that aborted on quit, §9) | `cmu --list-network` shows `Used=1`; CodeMeter frees it by itself after minutes to tens of minutes, `sudo systemctl restart codemeter` does it at once |
 
 Then install the launcher and pick the license:
 
@@ -266,14 +266,14 @@ runs any other executable inside the prefix.
 
 | Version | Install dir | Specifics |
 |---|---|---|
-| 5.3.0.60024 | `C:\Program Files\Vizrt` | reference setup; MSIs extracted from the bundle's Temp dir; no stock-icon problem |
+| 5.3.0.60024 | `C:\Program Files\Vizrt` | reference setup; MSIs extracted from the bundle's Temp dir; no stock-icon problem; vkd3d-proton D3D12 for a clean exit (§9) |
 | 5.2.1.60000 | `C:\Program Files\vizrt` | MSIs shipped in `Individual Installers/`; needs `winecfg -v win10` before the CodeMeter MSI; SHEL32Z applied pre-emptively (same Qt 6 `qwindows.dll` as 5.1); vkd3d-proton D3D12 for a clean exit (§9); Engine, Artist and Basic/DataPool/Maps/PixelFx/Socialize plugins verified |
 | 5.1.1.60000 | `C:\Program Files\vizrt` | SHEL32Z stock-icon proxy required (§6); vkd3d-proton D3D12 for a clean exit (§9) |
 
 All three run side by side in separate prefixes (`viz-wine`, `viz-wine52`, `viz-wine51`) against one
 Graphic Hub 3.1.1 instance, but only one engine at a time when there is a single license.
 
-## 9. License not released on quit (5.2 / 5.1) — fixed with vkd3d-proton
+## 9. License not released on quit (all versions) — fixed with vkd3d-proton
 
 Symptom: after quitting Viz Artist the CodeMeter license stays allocated (`cmu --list-network` shows
 `Used=1`) for about three minutes, and a restart in that window fails with Wibu error 213 and silently
@@ -305,7 +305,10 @@ directory and override for Viz.exe only:
 
 (`reg/vizd3d12.reg`). Verified: D3D12 device creation succeeds, the engine logs
 `finalize the license library` / `LocalWinMain done.` and `cmu --list-network` shows `Used=0` the same
-second `Viz.exe` exits. 5.3 does not have this bug (its shutdown never aborted).
+second `Viz.exe` exits. 5.3 has the same crash but hides it: its log stops after "db-server interface
+cleaned up" with no EMERGENCY line (logging is already closed), the process just vanishes, and CodeMeter
+kept that license for more than ten minutes. With the fix 5.3 also logs `finalize the license library`
+and frees the license immediately.
 
 Dead ends worth knowing: hiding `d3d12.dll` is impossible (static import of Viz.exe); Wine's own
 `dxgi.dll` cannot be swapped in per application — Wine resolves any builtin-signed PE by its embedded
