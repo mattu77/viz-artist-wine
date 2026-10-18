@@ -42,10 +42,12 @@ src/shel32z/              SHEL32Z.dll: SHGetStockIconInfo with real icons for Qt
 src/stubsvc/              CmWebAdmin.exe stand-in service so the CodeMeter MSI's StartServices passes
 src/httpapi-proxy/        httpapi.dll proxy (HttpInitialize no-op) — optional, only for the SCM path
 src/okclick/, src/okqt/   press OK / Return on a dialog from inside Wine (no X fake input needed)
+src/opengl32-swapcopy/    opengl32.dll proxy: WGL swap-copy emulation (classic scene editor black/flickering)
 src/diag/                 dwtest.exe (DirectWrite lookup), adapters.exe (GetAdaptersAddresses dump)
 scripts/patch-import.py   rename an imported DLL inside a PE file (same-length names)
+scripts/opengl32-swapcopy.sh install/remove the opengl32 proxy (section 10)
 scripts/make-forward-def.sh  generate a forwarding .def from a DLL's export table
-reg/*.reg                 registry snippets referenced below (vizasn1, engine, tahoma, graphichub, vizd3d12)
+reg/*.reg                 registry snippets referenced below (vizasn1, engine, tahoma, graphichub, vizd3d12, vizgl)
 Makefile                  builds everything into build/ with x86_64-w64-mingw32-gcc
 ```
 
@@ -318,6 +320,44 @@ name through the library directory (the alternatives symlink), so copies in the 
 system32, under another file name, or via `WINEDLLPATH` (searched *after* the library dir) all end up
 loading DXVK again. Switching the Fedora alternative to `wine-dxgi.dll` would work but affects every
 prefix on the machine.
+
+## 10. Classic (V3) scenes black or flickering in the Scene Editor — opengl32 swap-copy proxy
+
+Symptom: with a scene that uses the classic render pipeline (every scene older than the Viz Engine 4
+pipeline, shown as V3), the Scene Editor view stays black or shows a frame only now and then. Scenes on
+the new pipeline (V4) are fine. Seen with NVIDIA's driver under Xwayland (KDE Plasma Wayland).
+
+Root cause: the classic pipeline calls `SwapBuffers` on its window about twice per vblank but draws
+before only one of the two swaps (counted with an X Present event monitor). On Windows a windowed
+OpenGL swap is a copy, so the back buffer keeps its contents and the extra swap shows the same picture
+again. With NVIDIA's GLX a swap exchanges the buffers, so every second present shows a buffer that was
+never drawn into: only the frame and black ever appear. NVIDIA's fbconfigs do not offer
+`GLX_SWAP_METHOD_OML` = copy, so this cannot be selected; a minimal test program (draw once, keep
+swapping) reproduces it without Viz.
+
+Fix: a native `opengl32.dll` proxy for `Viz.exe` that forwards every export to `opengl32_wine.dll` (a
+copy of Wine's builtin) and emulates swap-copy: around each swap of a double-buffered window it saves
+the back buffer to a per-context renderbuffer and blits it back afterwards (MSAA aware).
+
+```
+make                                   # builds build/opengl32.dll
+cp build/opengl32.dll "$VIZ/"
+cp /usr/lib64/wine-wow64/wine/x86_64-windows/opengl32.dll "$VIZ/opengl32_wine.dll"   # Fedora wow64 build; adjust the path for your distro
+wine regedit reg/vizgl.reg             # AppDefaults\Viz.exe\DllOverrides opengl32=native,builtin
+```
+
+Or in one step: `scripts/opengl32-swapcopy.sh install` (and `... remove` to undo).
+
+`$VIZ` is the VizEngine directory. Refresh `opengl32_wine.dll` after every Wine package update (it must
+match the installed Wine). Takes effect at the next engine start. Environment knobs:
+`VIZ_GL_SWAPCOPY=0` disables the emulation, `VIZ_GL_SWAPCOPY_LOG=1` logs to stderr, `=2` also logs per
+swap how many clears and draw calls happened since the previous swap. To undo: delete the two DLLs and
+the `opengl32` value under `HKCU\Software\Wine\AppDefaults\Viz.exe\DllOverrides`.
+
+Verified (5.3, 2026-10-18): classic scene with a cube in a scene editor view, 30/30 window grabs and 5/5
+composited screen captures show the picture (without the fix: 6/30 and 1/10). The view must also be
+opened as a scene editor (`EDITOR*n WINDOW_OPEN_ON_PARENT <hwnd> w h MAIN`), not with the `ONAIR`
+flag, which shows only the classic on-air renderer path.
 
 ## Diagnostics that paid off
 

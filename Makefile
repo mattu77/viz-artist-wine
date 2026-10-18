@@ -4,7 +4,7 @@ CFLAGS  = -O2 -Wall
 DLLFLAGS = -shared -Wl,--kill-at -static-libgcc
 OUT     = build
 
-DLLS = $(OUT)/nvcuda.dll $(OUT)/vizasn1.dll $(OUT)/iphlpapi.dll $(OUT)/httpapi.dll $(OUT)/ADVAPI3Z.dll $(OUT)/SHEL32Z.dll
+DLLS = $(OUT)/nvcuda.dll $(OUT)/vizasn1.dll $(OUT)/iphlpapi.dll $(OUT)/httpapi.dll $(OUT)/ADVAPI3Z.dll $(OUT)/SHEL32Z.dll $(OUT)/opengl32.dll
 EXES = $(OUT)/CmWebAdmin.exe $(OUT)/okclick.exe $(OUT)/okqt.exe $(OUT)/dwtest.exe $(OUT)/adapters.exe
 
 all: $(DLLS) $(EXES)
@@ -25,6 +25,10 @@ $(OUT)/iphlpapi.dll: src/iphlpapi-proxy/proxy.c src/iphlpapi-proxy/iphlpapi.def 
 # forwards to httpapi_wine.dll = a copy of Wine's builtin httpapi.dll (optional, see README)
 $(OUT)/httpapi.dll: src/httpapi-proxy/proxy.c src/httpapi-proxy/httpapi.def | $(OUT)
 	$(CC) $(CFLAGS) $(DLLFLAGS) -o $@ $^
+
+# forwards to opengl32_wine.dll = a copy of Wine's builtin opengl32.dll (see README section 10)
+$(OUT)/opengl32.dll: src/opengl32-swapcopy/proxy.c src/opengl32-swapcopy/opengl32.def | $(OUT)
+	$(CC) $(CFLAGS) -Wno-attributes $(DLLFLAGS) -o $@ $^ -lgdi32 -luser32
 
 $(OUT)/ADVAPI3Z.dll: src/svcshim/shim.c src/svcshim/shim.def | $(OUT)
 	$(CC) $(CFLAGS) $(DLLFLAGS) -o $@ $^

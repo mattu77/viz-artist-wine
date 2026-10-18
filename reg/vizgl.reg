@@ -1,0 +1,5 @@
+Windows Registry Editor Version 5.00
+
+; opengl32 swap-copy proxy for Viz.exe only (README section 10)
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\Viz.exe\DllOverrides]
+"opengl32"="native,builtin"
