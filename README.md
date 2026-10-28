@@ -14,7 +14,7 @@ they are needed so nobody has to re-derive them.
 > CodeMeter files** — only the author's own small C shims, registry snippets, a shell launcher and notes.
 > Using the Vizrt software is subject to Vizrt's own license terms.
 
-Tested on Fedora 44, `wine-11.0 (Staging)` (wow64 build), KDE Plasma on X11, NVIDIA GPU with the
+Tested on Fedora 44, `wine-11.0 (Staging)` (wow64 build; **11.20 breaks the embedded preview**, see "After a Wine upgrade"), KDE Plasma on X11, NVIDIA GPU with the
 proprietary driver, native Linux CodeMeter 8.40. Everything is 64-bit.
 
 ---
@@ -373,6 +373,20 @@ Two things break every time the Wine package is updated:
   (or `wine reg add` the two `Dll` values).
 
 Seen with 11.0 → 11.20; everything else (fonts, overrides, shims, vkd3d-proton) survived.
+
+**Wine 11.20 regression — grey Scene Editor preview.** With wine-11.20 (Fedora 44 updates) the Artist GUI
+comes up but the preview stays grey. The engine renders into its own window ("X64 Viz Engine [1]") which
+the GUI embeds by reparenting it across processes; on 11.20 that X window is left `IsUnMapped` and its GL
+output never reaches the screen (`xwininfo -tree` on the GUI shows no child; the WGL trace shows tens of
+thousands of `win32u_context_flush` but hardly any `x11drv_surface_flush`). 11.0-3 works, so stay on it:
+
+```bash
+sudo dnf downgrade wine-core wine-common wine-desktop wine-filesystem wine-ldap wine-alsa wine-pulseaudio wine-systemd
+sudo dnf versionlock add wine-core wine-common wine-desktop wine-filesystem wine-ldap wine-alsa wine-pulseaudio wine-systemd
+```
+
+Then the two steps above again (kill the stale wineserver, re-import `reg/vizasn1.reg` if the first
+start re-registered wintrust).
 
 ## Diagnostics that paid off
 
