@@ -359,6 +359,21 @@ composited screen captures show the picture (without the fix: 6/30 and 1/10). Th
 opened as a scene editor (`EDITOR*n WINDOW_OPEN_ON_PARENT <hwnd> w h MAIN`), not with the `ONAIR`
 flag, which shows only the classic on-air renderer path.
 
+## After a Wine upgrade
+
+Two things break every time the Wine package is updated:
+
+* A wineserver started before the update keeps running as long as any process in the prefix lives (the
+  Graphic Hub Terminal typically does). Every new `wine` then fails with
+  `wine client error:0: version mismatch`. Fix: `wineserver -k` in that prefix, then `viz-wine gh` and
+  `gh-start` again.
+* On the first start in each prefix the new Wine re-registers wintrust's crypto OID handlers, which
+  overwrites the vizasn1.dll entries from §4, and Viz.exe aborts with
+  `unimplemented function wintrust.dll.WVTAsn1SpcStatementTypeDecode`. Fix: re-import `reg/vizasn1.reg`
+  (or `wine reg add` the two `Dll` values).
+
+Seen with 11.0 → 11.20; everything else (fonts, overrides, shims, vkd3d-proton) survived.
+
 ## Diagnostics that paid off
 
 * `WINEDEBUG=+loaddll,+seh` to map crash addresses to modules; `+relay` for the last calls before a crash.
