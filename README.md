@@ -14,7 +14,7 @@ they are needed so nobody has to re-derive them.
 > CodeMeter files** — only the author's own small C shims, registry snippets, a shell launcher and notes.
 > Using the Vizrt software is subject to Vizrt's own license terms.
 
-Tested on Fedora 44, `wine-11.0 (Staging)` (wow64 build; **11.20 breaks the embedded preview**, see "After a Wine upgrade"), KDE Plasma on X11, NVIDIA GPU with the
+Tested on Fedora 44, `wine-11.0 (Staging)` (wow64 build; **11.20 breaks the embedded preview**, so the launcher runs Viz on a private 11.0 tree, see "After a Wine upgrade"), KDE Plasma on X11, NVIDIA GPU with the
 proprietary driver, native Linux CodeMeter 8.40. Everything is 64-bit.
 
 ---
@@ -374,19 +374,34 @@ Two things break every time the Wine package is updated:
 
 Seen with 11.0 → 11.20; everything else (fonts, overrides, shims, vkd3d-proton) survived.
 
-**Wine 11.20 regression — grey Scene Editor preview.** With wine-11.20 (Fedora 44 updates) the Artist GUI
-comes up but the preview stays grey. The engine renders into its own window ("X64 Viz Engine [1]") which
-the GUI embeds by reparenting it across processes; on 11.20 that X window is left `IsUnMapped` and its GL
-output never reaches the screen (`xwininfo -tree` on the GUI shows no child; the WGL trace shows tens of
-thousands of `win32u_context_flush` but hardly any `x11drv_surface_flush`). 11.0-3 works, so stay on it:
+**Wine 11.20 regression — grey Scene Editor preview.** With wine-11.20 the Artist GUI comes up but the
+preview stays flat grey (no axis gizmo, nothing renders). The engine draws through a hidden
+`Vizrt::Dummy::Context` window and GL child windows that live inside the GUI process's top-level window;
+Wine 11.x renders such child surfaces offscreen and presents them into the top-level on `SwapBuffers`,
+and on 11.20 that presentation never happens for this cross-process layout (`WINEDEBUG=+wgl,+x11drv`:
+`client_surface_update_offscreen ... offscreen 1`, surface flushes only ever carry `GL_FLUSH_ACTIVATE`,
+`X11DRV_client_surface_present` is never reached for those windows). The 11.0 presentation path works.
+Fixing it properly means patching win32u/winex11 and rebuilding Wine.
+
+Workaround that keeps the system on the current Wine: run Viz on a **private copy of wine-11.0**.
+Unpack the Fedora 11.0 rpms into `~/.local/wine-11.0` (no root needed) and let the launcher use them:
 
 ```bash
-sudo dnf downgrade wine-core wine-common wine-desktop wine-filesystem wine-ldap wine-alsa wine-pulseaudio wine-systemd
-sudo dnf versionlock add wine-core wine-common wine-desktop wine-filesystem wine-ldap wine-alsa wine-pulseaudio wine-systemd
+mkdir -p ~/.local/wine-11.0 /tmp/wine110 && cd /tmp/wine110
+dnf download --repo=fedora wine-core-11.0-3.fc44.x86_64 wine-common-11.0-3.fc44 wine-filesystem-11.0-3.fc44 \
+    wine-ldap-11.0-3.fc44.x86_64 wine-pulseaudio-11.0-3.fc44.x86_64 wine-alsa-11.0-3.fc44.x86_64 wine-desktop-11.0-3.fc44
+cd ~/.local/wine-11.0 && for r in /tmp/wine110/*.rpm; do rpm2cpio "$r" | cpio -idm; done
+cd usr/bin && ln -s wine64 wine && ln -s wineserver64 wineserver
+# the rpm ships wine-dxgi.dll etc. without the alternatives symlinks: point them at the system DXVK files
+cd ../lib64/wine-wow64/wine/x86_64-windows && for d in dxgi d3d11 d3d10core d3d9; do ln -s /usr/lib64/wine-wow64/wine/x86_64-windows/dxvk-$d.dll $d.dll; done; ln -s wine-d3d8.dll d3d8.dll
+cd ../i386-windows && for d in dxgi d3d11 d3d10core d3d9; do ln -s wine-$d.dll $d.dll; done
 ```
 
-Then the two steps above again (kill the stale wineserver, re-import `reg/vizasn1.reg` if the first
-start re-registered wintrust).
+`bin/viz-wine` prepends `$VIZ_WINE_HOME/usr/bin` (default `~/.local/wine-11.0`) to `PATH` and sets
+`WINELOADER`/`WINESERVER`; the loader finds its libraries relative to the binary, so nothing else is
+needed. `VIZ_WINE_HOME=system viz-wine ...` uses the system Wine again. Every switch of the Wine build
+running a prefix triggers the two items above (stale wineserver, wintrust re-registration), so re-import
+`reg/vizasn1.reg` after the first start.
 
 ## Diagnostics that paid off
 

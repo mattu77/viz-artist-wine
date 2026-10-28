@@ -10,6 +10,12 @@
 case "$(basename "$0")" in viz-wine51) VIZ_PREFIX=${VIZ_PREFIX:-vizartist51} ;; viz-wine52) VIZ_PREFIX=${VIZ_PREFIX:-vizartist52} ;; esac
 export WINEPREFIX="$HOME/.local/share/wineprefixes/${VIZ_PREFIX:-vizartist}"
 export WINEDEBUG="${WINEDEBUG:--all}"
+# Private Wine build for Viz (default: unpacked Fedora wine-11.0 rpms; 11.20+ leaves the Scene Editor preview grey).
+# Set VIZ_WINE_HOME=system to use the system Wine instead.
+VIZ_WINE_HOME="${VIZ_WINE_HOME:-$HOME/.local/wine-11.0}"
+if [ "$VIZ_WINE_HOME" != system ] && [ -x "$VIZ_WINE_HOME/usr/bin/wine64" ]; then
+  export PATH="$VIZ_WINE_HOME/usr/bin:$PATH" WINELOADER="$VIZ_WINE_HOME/usr/bin/wine64" WINESERVER="$VIZ_WINE_HOME/usr/bin/wineserver64"
+fi
 # Viz Artist's Qt WebEngine views (Viz One config editor, documentation) never come up under Wine with
 # Chromium's sandbox/GPU process; the GUI then hangs at "Initializing Configuration Editor for Viz One".
 export QTWEBENGINE_CHROMIUM_FLAGS="${QTWEBENGINE_CHROMIUM_FLAGS:---no-sandbox --disable-gpu --disable-gpu-compositing --in-process-gpu --disable-features=RendererCodeIntegrity}"
